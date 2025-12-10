@@ -196,6 +196,14 @@ export class Weapon {
                         hitObject.userData.entity.takeDamage(20); // 20 Damage
                     }
 
+                    // Check Remote Player
+                    if (hitObject.userData && hitObject.userData.isPlayer && hitObject.userData.id) {
+                        // Trigger Network Hit
+                        if (this.onHit) {
+                            this.onHit(hitObject.userData.id, 20); // 20 Damage
+                        }
+                    }
+
                     const originalHex = hitObject.material.color.getHex();
                     hitObject.material.color.setHex(0xffffff);
                     setTimeout(() => {

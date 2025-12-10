@@ -84,6 +84,13 @@ function animate(time) {
                 projectiles.push(proj);
             };
         }
+
+        // Network Hit Callback
+        if (!player.weapon.onHit) {
+            player.weapon.onHit = (targetId, damage) => {
+                networkManager.sendHit(targetId, damage);
+            };
+        }
     }
 
     if (networkManager) networkManager.update(safeDelta);
