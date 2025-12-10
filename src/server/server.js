@@ -1,4 +1,3 @@
-const express = require('express');
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
@@ -6,7 +5,15 @@ const { Server } = require("socket.io");
 const io = new Server(server);
 const path = require('path');
 
-app.use(express.static(path.join(__dirname, '../../')));
+// Resolve root path (2 levels up from src/server)
+const rootPath = path.join(__dirname, '../../');
+console.log('Serving static files from:', rootPath);
+
+app.use(express.static(rootPath));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(rootPath, 'index.html'));
+});
 
 // Game State
 const players = {};
