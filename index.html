@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FPS Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: sans-serif;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #crosshair {
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border-radius: 50%;
+            opacity: 0.8;
+        }
+
+        #ammo-display {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 24px;
+        }
+
+        #controls-hint {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 14px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="ui-layer">
+        <div id="crosshair"></div>
+        <div id="ammo-display">Ammo: 30 / 90</div>
+
+        <!-- Damage Vignette -->
+        <div id="damage-vignette"></div>
+
+        <!-- HUD Container -->
+        <div id="hud-container">
+            <div class="bar-container">
+                <div class="bar-label">Health</div>
+                <div id="health-bar-bg">
+                    <div id="health-bar-fill"></div>
+                </div>
+            </div>
+            <div class="bar-container">
+                <div class="bar-label">Stamina</div>
+                <div id="stamina-bar-bg">
+                    <div id="stamina-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="controls-hint">
+            Click to Start<br>
+            WASD to Move<br>
+            SHIFT to Sprint<br>
+            SPACE to Jump<br>
+            R to Reload<br>
+            Right Click to Aim
+        </div>
+    </div>
+    <!-- Import map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>
