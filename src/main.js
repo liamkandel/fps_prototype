@@ -73,6 +73,15 @@ function animate(time) {
         if (!player.weapon.onShoot) {
             player.weapon.onShoot = (dir) => {
                 networkManager.sendShoot(dir);
+
+                // Spawn Local Projectile (Visual)
+                const startPos = camera.position.clone();
+                const offset = dir.clone().multiplyScalar(1.0); // Offset forward
+                startPos.add(offset);
+                startPos.y -= 0.2; // Adjust height
+
+                const proj = new Projectile(scene, startPos, dir, false); // false = Not Hostile
+                projectiles.push(proj);
             };
         }
     }
