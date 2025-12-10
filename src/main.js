@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { Player } from './Player.js';
 import { World } from './World.js';
+// import { Enemy } from './Enemy.js'; // Removed
 import { NetworkManager } from './NetworkManager.js';
+import { Projectile } from './Projectile.js';
 
 // --- CONFIGURATION ---
 const SCENE_BG_COLOR = 0x87CEEB; // Sky blue
