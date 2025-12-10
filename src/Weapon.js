@@ -184,6 +184,11 @@ export class Weapon {
             }
 
             if (hitObject) {
+                // Redirect Hitbox to Visual Mesh
+                if (hitObject.userData && hitObject.userData.isHitbox && hitObject.userData.visualMesh) {
+                    hitObject = hitObject.userData.visualMesh;
+                }
+
                 // Visual feedback: Flash color
                 if (hitObject.material && hitObject.material.color) {
                     // Check Enemy

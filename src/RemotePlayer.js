@@ -15,8 +15,21 @@ export class RemotePlayer {
         this.mesh.castShadow = true;
         this.mesh.receiveShadow = true;
 
-        // User Data for Raycasting
+        // User Data for Raycasting (Main Mesh)
         this.mesh.userData = { isPlayer: true, id: this.id };
+
+        // Hitbox (Larger invisible capsule)
+        // Main Radius is 0.5. Let's make hitbox 0.9 (Much more forgiving)
+        const hitboxGeo = new THREE.CapsuleGeometry(0.9, 1.8, 4, 8);
+        const hitboxMat = new THREE.MeshBasicMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.0, // Invisible but raycastable
+            side: THREE.DoubleSide
+        });
+        this.hitbox = new THREE.Mesh(hitboxGeo, hitboxMat);
+        this.hitbox.userData = { isPlayer: true, id: this.id, isHitbox: true, visualMesh: this.mesh };
+        this.mesh.add(this.hitbox);
 
         this.scene.add(this.mesh);
 
