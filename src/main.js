@@ -24,7 +24,7 @@ function init() {
     scene.fog = new THREE.Fog(SCENE_BG_COLOR, 10, 50);
 
     // 2. Setup Camera
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
     scene.add(camera); // Required for children of camera (gun) to be rendered
 
     // 3. Setup Renderer

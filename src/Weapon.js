@@ -160,8 +160,8 @@ export class Weapon {
         if (this.soundManager) this.soundManager.playShoot();
 
         // Recoil Visualization (Kick back)
-        this.mesh.position.z += 0.15;
-        this.mesh.rotation.x += 0.1; // Muzzle climb
+        this.mesh.position.z += 0.05; // Reduced from 0.15 to prevent clipping
+        this.mesh.rotation.x += 0.05; // Muzzle climb (reduced slightly)
 
         // Muzzle Flash
         this.muzzleFlash.visible = true;

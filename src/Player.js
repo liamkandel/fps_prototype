@@ -237,10 +237,11 @@ export class Player {
             this.raycaster.ray.origin.copy(startPos);
             this.raycaster.ray.origin.y -= 0.5; // Waist height
             this.raycaster.ray.direction.copy(dir);
-            this.raycaster.far = dist + 0.5; // margin
+            this.raycaster.far = dist + 1.0; // Larger margin (was 0.5/0.2)
             const hits = this.raycaster.intersectObjects(world.objects, false);
             // Ignore floor (normal.y should be ~0 for walls)
-            return hits.filter(h => Math.abs(h.normal.y) < 0.5 && h.distance < dist + 0.2).length > 0;
+            // Buffer increased to 0.8 for "fatter" collision
+            return hits.filter(h => Math.abs(h.normal.y) < 0.5 && h.distance < dist + 0.8).length > 0;
         };
 
         // --- Z Axis ---
