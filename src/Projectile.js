@@ -3,8 +3,8 @@ import * as THREE from 'three';
 export class Projectile {
     constructor(scene, position, direction) {
         this.scene = scene;
-        this.speed = 90;
-        this.damage = 10;
+        this.speed = 130;
+        this.damage = 5;
         this.alive = true;
         this.creationTime = performance.now();
         this.maxLifeTime = 2000; // 2 seconds

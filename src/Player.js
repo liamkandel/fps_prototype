@@ -231,175 +231,151 @@ export class Player {
         }
 
         // 5. Apply Movement (With Wall Collision)
+        // We separate X and Z to allow sliding
         const intendedMoveX = -this.velocity.x * delta;
         const intendedMoveZ = -this.velocity.z * delta;
 
-        // X Axis Collision
-        if (Math.abs(intendedMoveX) > 0.001) {
-            const dirX = intendedMoveX > 0 ? 1 : -1;
-            const rayX = new THREE.Vector3(dirX, 0, 0).applyQuaternion(this.camera.quaternion);
-            rayX.y = 0;
-            rayX.normalize();
+        // Correct approach: Raycast in the direction of velocity (world space)
+        // But velocity is separated into X/Z damping... 
+        // Let's stick to world space velocity collision check.
 
-            // We need to check in the direction of MOVEMENT (strafe), not just camera look.
-            // Actually, `controls.moveRight` moves relative to camera.
-            // Let's use world direction of the movement vector
-
-            // Simpler approach: 
-            // 1. Calculate next position
-            // 2. Raycast from current to next? 
-            // Or just Raycast in the 4 cardinal directions relative to player?
-
-            // Best approach for box controller:
-            // Controls uses moveRight/moveForward which updates position directly.
-            // We should anticipate the move.
-
-            // Since PointerLockControls handles the math of "Right" and "Forward", let's replicate it or peek.
-            // But we can't peek easily.
-
-            // Alternative: Move, check overlap, move back? (Poor performance/jitter)
-
-            // Correct approach: Raycast in the direction of velocity (world space)
-            // But velocity is separated into X/Z damping... 
-            // Let's stick to world space velocity collision check.
-
-            // Actually, we are modifying controls.getObject().position. 
-            // We should check if the target position hits a wall.
+        // Actually, we are modifying controls.getObject().position. 
+        // We should check if the target position hits a wall.
 
 
-            // Let's just implement a simple 4-ray check around the player for now, 
-            // or just cast in the direction of velocity.
+        // Let's just implement a simple 4-ray check around the player for now, 
+        // or just cast in the direction of velocity.
 
-            // NEW PLAN: 
-            // We have `this.velocity`. If `this.velocity.z` is negative, we are moving "forward" (relative to something?). 
-            // Actually `this.velocity` here is Local or World? 
-            // in `this.direction` calculation: 
-            // input -> direction (local) -> velocity? 
-            // No, code says: `controls.moveForward(-this.velocity.z * delta)`.
-            // So `velocity` is Local to the camera/player look direction.
+        // NEW PLAN: 
+        // We have `this.velocity`. If `this.velocity.z` is negative, we are moving "forward" (relative to something?). 
+        // Actually `this.velocity` here is Local or World? 
+        // in `this.direction` calculation: 
+        // input -> direction (local) -> velocity? 
+        // No, code says: `controls.moveForward(-this.velocity.z * delta)`.
+        // So `velocity` is Local to the camera/player look direction.
 
-            // Checking collisions for Local velocity is tricky without transforming to World.
-            // Let's simplify:
-            // Just move, then separate? No.
+        // Checking collisions for Local velocity is tricky without transforming to World.
+        // Let's simplify:
+        // Just move, then separate? No.
 
-            // Let's just cast a ray in the direction of the camera's local movement vectors before moving.
+        // Let's just cast a ray in the direction of the camera's local movement vectors before moving.
 
-            const camDir = new THREE.Vector3();
-            this.camera.getWorldDirection(camDir);
-            camDir.y = 0;
-            camDir.normalize();
+        const camDir = new THREE.Vector3();
+        this.camera.getWorldDirection(camDir);
+        camDir.y = 0;
+        camDir.normalize();
 
-            const camRight = new THREE.Vector3();
-            camRight.crossVectors(this.camera.up, camDir).normalize(); // Actually this might be inverted depending on order
-            // Controls.moveRight(d) -> crosses camera direction.
+        const camRight = new THREE.Vector3();
+        camRight.crossVectors(this.camera.up, camDir).normalize(); // Actually this might be inverted depending on order
+        // Controls.moveRight(d) -> crosses camera direction.
 
-            const moveVec = new THREE.Vector3();
-            moveVec.addScaledVector(camRight, intendedMoveX); // Local X move matches Right vector
-            moveVec.addScaledVector(camDir, intendedMoveZ); // Local Z move matches Forward vector (inverted? moveForward takes distance. + moved forward)
-            // Code: moveForward(-velocity.z). If vel.z is + (backward key), we move backward. 
-            // So intendedMoveZ IS the signed distance.
+        const moveVec = new THREE.Vector3();
+        moveVec.addScaledVector(camRight, intendedMoveX); // Local X move matches Right vector
+        moveVec.addScaledVector(camDir, intendedMoveZ); // Local Z move matches Forward vector (inverted? moveForward takes distance. + moved forward)
+        // Code: moveForward(-velocity.z). If vel.z is + (backward key), we move backward. 
+        // So intendedMoveZ IS the signed distance.
 
-            const dist = moveVec.length();
+        const dist = moveVec.length();
 
-            if (dist > 0.001) {
-                const navDir = moveVec.clone().normalize();
+        if (dist > 0.001) {
+            const navDir = moveVec.clone().normalize();
 
-                // Cast ray at waist height
-                this.raycaster.ray.origin.copy(this.controls.getObject().position);
-                this.raycaster.ray.origin.y -= 0.5;
-                this.raycaster.ray.direction.copy(navDir);
-                this.raycaster.far = dist + 0.5; // Margin 0.5m
+            // Cast ray at waist height
+            this.raycaster.ray.origin.copy(this.controls.getObject().position);
+            this.raycaster.ray.origin.y -= 0.5;
+            this.raycaster.ray.direction.copy(navDir);
+            this.raycaster.far = dist + 0.5; // Margin 0.5m
 
-                const hits = this.raycaster.intersectObjects(world.objects, false);
-                // Filter floor
-                const wallHits = hits.filter(h => h.normal.y < 0.5); // Steep normal
+            const hits = this.raycaster.intersectObjects(world.objects, false);
+            // Filter floor
+            const wallHits = hits.filter(h => h.normal.y < 0.5); // Steep normal
 
-                if (wallHits.length > 0) {
-                    // Hit wall
-                    // Simple stop: don't move
-                    // Better: Slide (remove normal component)
-                    // For prototype: Just stop
-                    // Reduce move to hit distance - buffer
-                    // this.velocity.set(0, this.velocity.y, 0); // Harsh stop
+            if (wallHits.length > 0) {
+                // Hit wall
+                // Simple stop: don't move
+                // Better: Slide (remove normal component)
+                // For prototype: Just stop
+                // Reduce move to hit distance - buffer
+                // this.velocity.set(0, this.velocity.y, 0); // Harsh stop
 
-                    // Actually, if we just don't apply movement, that's fine.
-                    // But we want to slide along walls. 
-                    // Sliding is complex for this step size. 
-                    // Let's just blocking movement if ray hits.
+                // Actually, if we just don't apply movement, that's fine.
+                // But we want to slide along walls. 
+                // Sliding is complex for this step size. 
+                // Let's just blocking movement if ray hits.
 
-                    if (wallHits[0].distance < 0.5) {
-                        // Block complete movement
-                        // To allow sliding, we'd need to block only the perpendicular component.
+                if (wallHits[0].distance < 0.5) {
+                    // Block complete movement
+                    // To allow sliding, we'd need to block only the perpendicular component.
 
-                        // Let's try separate X and Z checks for basic sliding?
-                        // Too much code for this block replacement.
+                    // Let's try separate X and Z checks for basic sliding?
+                    // Too much code for this block replacement.
 
-                        // Simple: If hit, don't move.
-                        // User request: "collisions between objects".
-                        // This will feel sticky but fulfills request.
-                    } else {
-                        this.controls.moveRight(intendedMoveX);
-                        this.controls.moveForward(intendedMoveZ);
-                    }
+                    // Simple: If hit, don't move.
+                    // User request: "collisions between objects".
+                    // This will feel sticky but fulfills request.
                 } else {
                     this.controls.moveRight(intendedMoveX);
                     this.controls.moveForward(intendedMoveZ);
                 }
+            } else {
+                this.controls.moveRight(intendedMoveX);
+                this.controls.moveForward(intendedMoveZ);
             }
-        } else {
-            this.controls.moveRight(intendedMoveX);
-            this.controls.moveForward(intendedMoveZ);
         }
+    } else {
+    this.controls.moveRight(intendedMoveX);
+    this.controls.moveForward(intendedMoveZ);
+}
 
-        this.controls.getObject().position.y += (this.velocity.y * delta);
+this.controls.getObject().position.y += (this.velocity.y * delta);
 
-        // Hard Floor
-        if (this.controls.getObject().position.y < this.playerHeight) {
-            this.velocity.y = 0;
-            this.controls.getObject().position.y = this.playerHeight;
-            this.canJump = true;
-        }
+// Hard Floor
+if (this.controls.getObject().position.y < this.playerHeight) {
+    this.velocity.y = 0;
+    this.controls.getObject().position.y = this.playerHeight;
+    this.canJump = true;
+}
 
-        // 6. Update Weapon
-        this.weapon.update(delta, isMoving);
+// 6. Update Weapon
+this.weapon.update(delta, isMoving);
 
-        // 7. Update HUD
-        this.updateHUD();
+// 7. Update HUD
+this.updateHUD();
     }
 
-    updateHUD() {
-        const healthBar = document.getElementById('health-bar-fill');
-        const staminaBar = document.getElementById('stamina-bar-fill');
+updateHUD() {
+    const healthBar = document.getElementById('health-bar-fill');
+    const staminaBar = document.getElementById('stamina-bar-fill');
 
-        if (healthBar) {
-            healthBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
-        }
-
-        if (staminaBar) {
-            staminaBar.style.width = `${(this.stamina / this.maxStamina) * 100}%`;
-        }
+    if (healthBar) {
+        healthBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
     }
 
-    takeDamage(amount) {
-        this.health -= amount;
-        if (this.health < 0) this.health = 0;
-        this.updateHUD();
-
-        // Damage Vignette
-        const vignette = document.getElementById('damage-vignette');
-        if (vignette) {
-            vignette.style.opacity = '1';
-            setTimeout(() => {
-                if (vignette) vignette.style.opacity = '0';
-            }, 300);
-        }
-
-        if (this.health <= 0) {
-            // Game Over
-            // Ideally notify Main to stop loop or show UI
-            // For now: Simple alert
-            alert("Game Over! Reloading...");
-            location.reload();
-        }
+    if (staminaBar) {
+        staminaBar.style.width = `${(this.stamina / this.maxStamina) * 100}%`;
     }
+}
+
+takeDamage(amount) {
+    this.health -= amount;
+    if (this.health < 0) this.health = 0;
+    this.updateHUD();
+
+    // Damage Vignette
+    const vignette = document.getElementById('damage-vignette');
+    if (vignette) {
+        vignette.style.opacity = '1';
+        setTimeout(() => {
+            if (vignette) vignette.style.opacity = '0';
+        }, 300);
+    }
+
+    if (this.health <= 0) {
+        // Game Over
+        // Ideally notify Main to stop loop or show UI
+        // For now: Simple alert
+        alert("Game Over! Reloading...");
+        location.reload();
+    }
+}
 }

@@ -24,7 +24,10 @@ export class Weapon {
 
         // ADS Position (Centered and brought closer/higher)
         // Adjusted for the new model height so sights align with crosshair
-        this.adsPosition = new THREE.Vector3(0, -0.165, -0.4);
+        // Ring center is approx 0.08 above gun origin.
+        // We want ring center at (0,0,0) relative to camera essentially.
+        // So gun y should be -0.08
+        this.adsPosition = new THREE.Vector3(0, -0.08, -0.25); // Closer
         this.adsRotation = new THREE.Euler(0, 0, 0);
 
         this.initMesh();
@@ -65,18 +68,41 @@ export class Weapon {
         this.magazine.position.set(0, -0.12, -0.05); // Forward of grip
         this.gunBody.add(this.magazine);
 
-        // 5. Sights
-        // Rear Sight (Notch)
-        const rearSightGeo = new THREE.BoxGeometry(0.06, 0.02, 0.02);
-        const rearSight = new THREE.Mesh(rearSightGeo, black);
-        rearSight.position.set(0, 0.05, 0.18);
+        // 5. Sights (Iron Sights)
+
+        // Rear Sight (Ghost Ring)
+        const ringGeo = new THREE.RingGeometry(0.015, 0.02, 16);
+        const ringMat = new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.DoubleSide });
+        const rearSight = new THREE.Mesh(ringGeo, ringMat);
+        rearSight.position.set(0, 0.08, 0.15); // Mounted back
         this.gunBody.add(rearSight);
 
-        // Front Sight (Post)
-        const frontSightGeo = new THREE.BoxGeometry(0.01, 0.02, 0.01);
-        const frontSight = new THREE.Mesh(frontSightGeo, new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0x440000 }));
-        frontSight.position.set(0, 0.07, -0.48); // Tip of barrel
-        this.gunBody.add(frontSight);
+        // Rear Sight Holder (Stem)
+        const stemGeo = new THREE.BoxGeometry(0.04, 0.04, 0.02);
+        const stem = new THREE.Mesh(stemGeo, black);
+        stem.position.set(0, 0.05, 0.15);
+        this.gunBody.add(stem);
+
+        // Front Sight (Post with Hood)
+        // Post
+        const frontPostGeo = new THREE.BoxGeometry(0.004, 0.03, 0.004);
+        const frontPost = new THREE.Mesh(frontPostGeo, new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xaa0000 }));
+        frontPost.position.set(0, 0.065, -0.48); // Tip of barrel
+        this.gunBody.add(frontPost);
+
+        // Hood (Half Cylinder?) or just keep it open post for visibility
+        // Let's add simple protective wings
+        const wingGeo = new THREE.BoxGeometry(0.005, 0.03, 0.02);
+        const leftWing = new THREE.Mesh(wingGeo, black);
+        const rightWing = new THREE.Mesh(wingGeo, black);
+
+        leftWing.position.set(-0.015, 0.065, -0.48);
+        leftWing.rotation.z = -0.2;
+        rightWing.position.set(0.015, 0.065, -0.48);
+        rightWing.rotation.z = 0.2;
+
+        this.gunBody.add(leftWing);
+        this.gunBody.add(rightWing);
 
 
         // --- Muzzle Flash ---

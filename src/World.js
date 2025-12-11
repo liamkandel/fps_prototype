@@ -34,7 +34,7 @@ export class World {
 
     initEnvironment() {
         // Floor
-        const floorGeometry = new THREE.PlaneGeometry(100, 100);
+        const floorGeometry = new THREE.PlaneGeometry(50, 50);
         const floorMaterial = new THREE.MeshStandardMaterial({
             color: 0x444444,
             roughness: 0.8
@@ -46,34 +46,55 @@ export class World {
         this.objects.push(floor);
 
         // Grid Helper
-        const gridHelper = new THREE.GridHelper(100, 100);
+        const gridHelper = new THREE.GridHelper(50, 50);
         this.scene.add(gridHelper);
 
-        // Simple Wall
-        const wallGeo = new THREE.BoxGeometry(10, 5, 1);
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
-        const wall = new THREE.Mesh(wallGeo, wallMat);
-        wall.position.set(0, 2.5, -10);
-        wall.castShadow = true;
-        wall.receiveShadow = true;
-        this.scene.add(wall);
-        this.objects.push(wall);
+        // Walls
+        const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
 
-        // Dummy Targets
-        for (let i = 0; i < 5; i++) {
-            const targetGeo = new THREE.BoxGeometry(1, 2, 1);
-            const targetMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-            const target = new THREE.Mesh(targetGeo, targetMat);
+        // Wall Params
+        const wallHeight = 5;
+        const wallThickness = 1;
+        const mapSize = 50;
 
-            target.position.x = (Math.random() - 0.5) * 40;
-            target.position.z = (Math.random() - 0.5) * 40;
-            target.position.y = 1; // On floor
+        // 4 Walls
+        const wall1 = new THREE.Mesh(new THREE.BoxGeometry(mapSize, wallHeight, wallThickness), wallMaterial);
+        wall1.position.set(0, wallHeight / 2, -mapSize / 2);
 
-            target.castShadow = true;
-            target.receiveShadow = true;
+        const wall2 = new THREE.Mesh(new THREE.BoxGeometry(mapSize, wallHeight, wallThickness), wallMaterial);
+        wall2.position.set(0, wallHeight / 2, mapSize / 2);
 
-            this.scene.add(target);
-            this.objects.push(target);
+        const wall3 = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, mapSize), wallMaterial);
+        wall3.position.set(-mapSize / 2, wallHeight / 2, 0);
+
+        const wall4 = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, mapSize), wallMaterial);
+        wall4.position.set(mapSize / 2, wallHeight / 2, 0);
+
+        [wall1, wall2, wall3, wall4].forEach(wall => {
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            this.scene.add(wall);
+            this.objects.push(wall);
+        });
+
+        // Add some random crates for cover (not red boxes, proper "boxes")
+        const crateTex = 0x8B4513; // SaddleBrown
+        for (let i = 0; i < 8; i++) {
+            const size = 1.5 + Math.random();
+            const crate = new THREE.Mesh(
+                new THREE.BoxGeometry(size, size, size),
+                new THREE.MeshStandardMaterial({ color: crateTex })
+            );
+
+            // Random pos inside walls (margin 5)
+            crate.position.x = (Math.random() - 0.5) * 35;
+            crate.position.z = (Math.random() - 0.5) * 35;
+            crate.position.y = size / 2;
+
+            crate.castShadow = true;
+            crate.receiveShadow = true;
+            this.scene.add(crate);
+            this.objects.push(crate);
         }
     }
 }
