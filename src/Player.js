@@ -159,8 +159,6 @@ export class Player {
     update(delta, world) {
         if (!this.controls.isLocked) return;
 
-        // ... (Start of update)
-
         // Low Health Heartbeat
         if (this.health < 20 && this.health > 0) {
             this.heartbeatTimer = (this.heartbeatTimer || 0) + delta;
@@ -171,8 +169,8 @@ export class Player {
         }
 
         // 1. Ground Collision
-        // ... (Existing logic)
         this.raycaster.ray.origin.copy(this.controls.getObject().position);
+        this.raycaster.ray.direction.set(0, -1, 0);
         const intersections = this.raycaster.intersectObjects(world.objects, false);
         const onObject = intersections.length > 0 && intersections[0].distance <= this.playerHeight + 0.1;
 
@@ -181,21 +179,21 @@ export class Player {
         this.velocity.z -= this.velocity.z * 10.0 * delta;
         this.velocity.y -= this.gravity * delta;
 
-        // 3. Input & Stamina
+        // 3. Input
         this.direction.z = Number(this.moveForward) - Number(this.moveBackward);
         this.direction.x = Number(this.moveRight) - Number(this.moveLeft);
         this.direction.normalize();
 
         const isMoving = (this.moveForward || this.moveBackward || this.moveLeft || this.moveRight);
 
-        // Stamina Logic
+        // Stamina
         if (this.isSprintKeyPressed && isMoving && this.stamina > 0) {
             this.isSprinting = true;
             this.stamina -= this.staminaDrainRate * delta;
             if (this.stamina < 0) this.stamina = 0;
         } else {
             this.isSprinting = false;
-            // Regen only if not holding shift or not moving (or exhausted but still holding, we wait for a bit? strict regen is fine)
+            // Regen
             if (this.stamina < this.maxStamina) {
                 this.stamina += this.staminaRegenRate * delta;
                 if (this.stamina > this.maxStamina) this.stamina = this.maxStamina;
@@ -211,171 +209,129 @@ export class Player {
             this.velocity.x -= this.direction.x * currentSpeed * delta * 50;
         }
 
-        // 4. Collision Response
+        // 4. Collision Response (Ground)
         if (onObject === true) {
             this.velocity.y = Math.max(0, this.velocity.y);
             this.canJump = true;
 
-            // Step Sound Logic
+            // Step Sound
             if (isMoving) {
                 this.stepTimer += delta;
-                // Faster interval when sprinting
                 const interval = this.isSprinting ? 0.35 : 0.55;
                 if (this.stepTimer > interval) {
                     this.stepTimer = 0;
                     this.soundManager.playStep();
                 }
             } else {
-                this.stepTimer = 0; // Reset so first step triggers easier
+                this.stepTimer = 0;
             }
         }
 
-        // 5. Apply Movement (With Wall Collision)
+        // 5. Apply Movement (Wall Collision)
         // We separate X and Z to allow sliding
         const intendedMoveX = -this.velocity.x * delta;
         const intendedMoveZ = -this.velocity.z * delta;
 
-        // Correct approach: Raycast in the direction of velocity (world space)
-        // But velocity is separated into X/Z damping... 
-        // Let's stick to world space velocity collision check.
-
-        // Actually, we are modifying controls.getObject().position. 
-        // We should check if the target position hits a wall.
-
-
-        // Let's just implement a simple 4-ray check around the player for now, 
-        // or just cast in the direction of velocity.
-
-        // NEW PLAN: 
-        // We have `this.velocity`. If `this.velocity.z` is negative, we are moving "forward" (relative to something?). 
-        // Actually `this.velocity` here is Local or World? 
-        // in `this.direction` calculation: 
-        // input -> direction (local) -> velocity? 
-        // No, code says: `controls.moveForward(-this.velocity.z * delta)`.
-        // So `velocity` is Local to the camera/player look direction.
-
-        // Checking collisions for Local velocity is tricky without transforming to World.
-        // Let's simplify:
-        // Just move, then separate? No.
-
-        // Let's just cast a ray in the direction of the camera's local movement vectors before moving.
-
-        const camDir = new THREE.Vector3();
-        this.camera.getWorldDirection(camDir);
-        camDir.y = 0;
-        camDir.normalize();
-
-        const camRight = new THREE.Vector3();
-        camRight.crossVectors(this.camera.up, camDir).normalize(); // Actually this might be inverted depending on order
-        // Controls.moveRight(d) -> crosses camera direction.
-
-        const moveVec = new THREE.Vector3();
-        moveVec.addScaledVector(camRight, intendedMoveX); // Local X move matches Right vector
-        moveVec.addScaledVector(camDir, intendedMoveZ); // Local Z move matches Forward vector (inverted? moveForward takes distance. + moved forward)
-        // Code: moveForward(-velocity.z). If vel.z is + (backward key), we move backward. 
-        // So intendedMoveZ IS the signed distance.
-
-        const dist = moveVec.length();
-
-        if (dist > 0.001) {
-            const navDir = moveVec.clone().normalize();
-
-            // Cast ray at waist height
-            this.raycaster.ray.origin.copy(this.controls.getObject().position);
-            this.raycaster.ray.origin.y -= 0.5;
-            this.raycaster.ray.direction.copy(navDir);
-            this.raycaster.far = dist + 0.5; // Margin 0.5m
-
+        // Helper: Check collision
+        const checkWall = (startPos, dir, dist) => {
+            this.raycaster.ray.origin.copy(startPos);
+            this.raycaster.ray.origin.y -= 0.5; // Waist height
+            this.raycaster.ray.direction.copy(dir);
+            this.raycaster.far = dist + 0.5; // margin
             const hits = this.raycaster.intersectObjects(world.objects, false);
-            // Filter floor
-            const wallHits = hits.filter(h => h.normal.y < 0.5); // Steep normal
+            // Ignore floor (normal.y should be ~0 for walls)
+            return hits.filter(h => Math.abs(h.normal.y) < 0.5 && h.distance < dist + 0.2).length > 0;
+        };
 
-            if (wallHits.length > 0) {
-                // Hit wall
-                // Simple stop: don't move
-                // Better: Slide (remove normal component)
-                // For prototype: Just stop
-                // Reduce move to hit distance - buffer
-                // this.velocity.set(0, this.velocity.y, 0); // Harsh stop
+        // --- Z Axis ---
+        if (Math.abs(intendedMoveZ) > 0.0001) {
+            const camDir = new THREE.Vector3();
+            this.camera.getWorldDirection(camDir);
+            camDir.y = 0;
+            camDir.normalize();
 
-                // Actually, if we just don't apply movement, that's fine.
-                // But we want to slide along walls. 
-                // Sliding is complex for this step size. 
-                // Let's just blocking movement if ray hits.
+            // intendedMoveZ is signed "amount to move forward".
+            // If negative, we move Backward.
+            // Wait. moveForward(dist) moves forward.
+            // Logic: controls.moveForward(-velocity.z * delta).
+            // If velocity.z is negative (moving forward), intendedMoveZ is Positive.
+            // So +Z Move = Forward.
 
-                if (wallHits[0].distance < 0.5) {
-                    // Block complete movement
-                    // To allow sliding, we'd need to block only the perpendicular component.
+            const moveDir = camDir.clone();
+            if (intendedMoveZ < 0) moveDir.negate();
 
-                    // Let's try separate X and Z checks for basic sliding?
-                    // Too much code for this block replacement.
-
-                    // Simple: If hit, don't move.
-                    // User request: "collisions between objects".
-                    // This will feel sticky but fulfills request.
-                } else {
-                    this.controls.moveRight(intendedMoveX);
-                    this.controls.moveForward(intendedMoveZ);
-                }
-            } else {
-                this.controls.moveRight(intendedMoveX);
+            if (!checkWall(this.controls.getObject().position, moveDir, Math.abs(intendedMoveZ))) {
                 this.controls.moveForward(intendedMoveZ);
             }
         }
-    } else {
-    this.controls.moveRight(intendedMoveX);
-    this.controls.moveForward(intendedMoveZ);
-}
 
-this.controls.getObject().position.y += (this.velocity.y * delta);
+        // --- X Axis ---
+        if (Math.abs(intendedMoveX) > 0.0001) {
+            const camDir = new THREE.Vector3();
+            this.camera.getWorldDirection(camDir);
+            camDir.y = 0;
+            camDir.normalize();
 
-// Hard Floor
-if (this.controls.getObject().position.y < this.playerHeight) {
-    this.velocity.y = 0;
-    this.controls.getObject().position.y = this.playerHeight;
-    this.canJump = true;
-}
+            // Right vector
+            const camRight = new THREE.Vector3().crossVectors(camDir, this.camera.up).normalize();
 
-// 6. Update Weapon
-this.weapon.update(delta, isMoving);
+            const moveDir = camRight.clone();
+            if (intendedMoveX < 0) moveDir.negate();
 
-// 7. Update HUD
-this.updateHUD();
+            if (!checkWall(this.controls.getObject().position, moveDir, Math.abs(intendedMoveX))) {
+                this.controls.moveRight(intendedMoveX);
+            }
+        }
+
+        this.controls.getObject().position.y += (this.velocity.y * delta);
+
+        // Hard Floor
+        if (this.controls.getObject().position.y < this.playerHeight) {
+            this.velocity.y = 0;
+            this.controls.getObject().position.y = this.playerHeight;
+            this.canJump = true;
+        }
+
+        // 6. Update Weapon
+        this.weapon.update(delta, isMoving);
+
+        // 7. Update HUD
+        this.updateHUD();
     }
 
-updateHUD() {
-    const healthBar = document.getElementById('health-bar-fill');
-    const staminaBar = document.getElementById('stamina-bar-fill');
+    updateHUD() {
+        const healthBar = document.getElementById('health-bar-fill');
+        const staminaBar = document.getElementById('stamina-bar-fill');
 
-    if (healthBar) {
-        healthBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
+        if (healthBar) {
+            healthBar.style.width = `${(this.health / this.maxHealth) * 100}%`;
+        }
+
+        if (staminaBar) {
+            staminaBar.style.width = `${(this.stamina / this.maxStamina) * 100}%`;
+        }
     }
 
-    if (staminaBar) {
-        staminaBar.style.width = `${(this.stamina / this.maxStamina) * 100}%`;
-    }
-}
+    takeDamage(amount) {
+        this.health -= amount;
+        if (this.health < 0) this.health = 0;
+        this.updateHUD();
 
-takeDamage(amount) {
-    this.health -= amount;
-    if (this.health < 0) this.health = 0;
-    this.updateHUD();
+        // Damage Vignette
+        const vignette = document.getElementById('damage-vignette');
+        if (vignette) {
+            vignette.style.opacity = '1';
+            setTimeout(() => {
+                if (vignette) vignette.style.opacity = '0';
+            }, 300);
+        }
 
-    // Damage Vignette
-    const vignette = document.getElementById('damage-vignette');
-    if (vignette) {
-        vignette.style.opacity = '1';
-        setTimeout(() => {
-            if (vignette) vignette.style.opacity = '0';
-        }, 300);
+        if (this.health <= 0) {
+            // Game Over
+            // Ideally notify Main to stop loop or show UI
+            // For now: Simple alert
+            alert("Game Over! Reloading...");
+            location.reload();
+        }
     }
-
-    if (this.health <= 0) {
-        // Game Over
-        // Ideally notify Main to stop loop or show UI
-        // For now: Simple alert
-        alert("Game Over! Reloading...");
-        location.reload();
-    }
-}
 }
